@@ -1,0 +1,95 @@
+; Example DNS zone file demonstrating various formatting cases
+; (no multi-line parenthesized records in this example)
+
+$ORIGIN example.com.
+$TTL 3600
+
+; --- SOA record: full form, name = @, includes TTL and CLASS ---
+@       3600    IN  SOA     ns1.example.com. admin.example.com. 2026082901 3600 600 86400 300
+
+; --- NS records: name omitted on second line (inherits previous name "@") ---
+@       IN  NS      ns1.example.com.
+        IN  NS      ns2.example.com.
+
+; --- A record: absolute name (trailing dot), no TTL, no CLASS (both use defaults) ---
+www.example.com.    A    192.0.2.10
+
+; --- A record: relative name (resolved against $ORIGIN), CLASS but no TTL ---
+mail    IN  A       192.0.2.20
+
+; --- A record: TTL present, CLASS omitted ---
+ftp     7200        A   192.0.2.30
+
+; --- A record: both TTL and CLASS present, CLASS before TTL (order can vary) ---
+db      IN  1800     A   192.0.2.40
+
+; --- Name omitted entirely: inherits "db" from the line above (multiple A records for same name) ---
+        IN          A   192.0.2.41
+
+; --- @ symbol used explicitly as name (apex) ---
+@       IN  A       192.0.2.1
+
+; --- AAAA record: absolute name (trailing dot), no TTL, no CLASS (both use defaults) ---
+www.example.com.    AAAA    2001:db8::10
+
+; --- AAAA record: relative name (resolved against $ORIGIN), CLASS but no TTL ---
+mail    IN  AAAA    2001:db8::20
+
+; --- AAAA record: TTL present, CLASS omitted ---
+ftp     7200        AAAA    2001:db8::30
+
+; --- AAAA record: both TTL and CLASS present, CLASS before TTL (order can vary) ---
+db      IN  1800    AAAA    2001:db8::40
+
+; --- Name omitted entirely: inherits "db" (same name served over IPv4 and IPv6) ---
+        IN          AAAA    2001:db8::41
+
+; --- AAAA record: apex, address written in full (uncompressed) form ---
+@       IN  AAAA    2001:0db8:0000:0000:0000:0000:0000:0001
+
+; --- AAAA record: uppercase hex digits, lowercase type (case-insensitive) ---
+ipv6    in  aaaa    2001:DB8::AB:CDEF
+
+; --- MX records: note "10" and "20" are priorities (RDATA), not TTL ---
+@       IN  MX      10 mail.example.com.
+@       IN  MX      20 mail2.example.com.
+
+; --- CNAME record: relative name and relative target ---
+webmail IN  CNAME   www
+
+; --- CNAME record: absolute target ---
+imap    IN  CNAME   mail.example.com.
+
+; --- TXT record: value in quotes, spaces inside do not split tokens ---
+@       IN  TXT     "v=spf1 mx a ip4:192.0.2.0/24 -all"
+
+; --- TXT record: multiple quoted strings concatenated ---
+_dmarc  IN  TXT     "v=DMARC1; " "p=none; rua=mailto:dmarc@example.com"
+
+
+; --- CAA record ---
+@       IN  CAA     0 issue "letsencrypt.org"
+
+; --- PTR-style example within a forward zone (rare but syntactically valid) ---
+alias   IN  PTR     www.example.com.
+
+; --- Changing $ORIGIN mid-file ---
+$ORIGIN sub.example.com.
+
+host1   IN  A       192.0.2.50
+host2   3600 IN A   192.0.2.51
+
+; --- AAAA record after $ORIGIN change (resolved against sub.example.com.) ---
+host1   IN  AAAA    2001:db8:1::50
+
+; --- Restore origin, new $TTL default for subsequent records without explicit TTL ---
+$ORIGIN example.com.
+$TTL 86400
+
+archive IN  A       192.0.2.60
+
+; --- AAAA record using the new $TTL default ---
+archive IN  AAAA    2001:db8::60
+
+; --- Uppercase vs lowercase type/class (case-insensitive) ---
+lowercase   in  a   192.0.2.70

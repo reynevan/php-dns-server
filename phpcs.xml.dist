@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<ruleset name="php-dns-server">
+    <description>PSR-12 dla src/ i tests/.</description>
+
+    <file>src</file>
+    <file>tests</file>
+
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>tests/Unit/Fixtures/*</exclude-pattern>
+
+    <arg name="colors"/>
+    <arg name="basepath" value="."/>
+    <arg value="p"/>
+
+    <rule ref="PSR12"/>
+</ruleset>

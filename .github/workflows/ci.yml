@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: PHP 8.4 — PHPUnit, PHPStan, PHPCS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, sockets, ctype
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@v3
+        with:
+          composer-options: "--prefer-dist"
+
+      - name: PHPUnit
+        run: vendor/bin/phpunit --colors=always
+
+      - name: PHPStan
+        if: ${{ !cancelled() }}
+        run: vendor/bin/phpstan analyse --no-progress --error-format=github
+
+      - name: PHPCS
+        if: ${{ !cancelled() }}
+        run: vendor/bin/phpcs --report=full

@@ -1,0 +1,7 @@
+/vendor/
+/.idea/
+/.phpunit.result.cache
+
+# local overrides of the committed configs
+/phpcs.xml
+/phpstan.neon.local

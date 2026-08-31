@@ -1,0 +1,28 @@
+{
+    "name": "reynevan/php-dns-server",
+    "description": "A minimal authoritative DNS server in plain PHP, serving a BIND-style zone file over UDP.",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Reynevan\\PhpDnsServer\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Paweł Sumiński",
+            "email": "p.suminski@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.4",
+        "ext-mbstring": "*",
+        "ext-sockets": "*",
+        "ext-ctype": "*"
+    },
+    "require-dev": {
+        "squizlabs/php_codesniffer": "^4.0",
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^13.3"
+    }
+}
