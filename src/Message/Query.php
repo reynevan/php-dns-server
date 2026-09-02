@@ -10,54 +10,10 @@ class Query
 {
     private const int HEADER_LENGTH = 12;
 
-    private string $txId;
-
-    private string $name;
-
-    private RecordType $type;
-
-    private QueryFlags $flags;
 
     public function getTxId(): string
     {
         return $this->txId;
-    }
-
-    public function getType(): RecordType
-    {
-        return $this->type;
-    }
-
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    public function __construct(string $buffer)
-    {
-        $this->txId = substr($buffer, 0, 2);
-        $this->flags = new QueryFlags($buffer);
-        $name = DomainName::decode(substr($buffer, self::HEADER_LENGTH));
-        $this->name = (string) $name;
-        $type = unpack('n', substr($buffer, self::HEADER_LENGTH + $name->getEncodedLength(), 2));
-        if (!$type || !isset($type[1])) {
-            throw new MalformedQueryException();
-        }
-        $type = RecordType::fromInt($type[1]);
-        if (!$type) {
-            throw new NotImplementedException();
-        }
-        $this->type = $type;
-        $this->validateFlags();
-    }
-
-    public function __toString(): string
-    {
-        $result = (DomainName::fromString($this->name))->encode();
-        $result .= pack('n', $this->type->toInt());
-        $result .= pack('n', 1);
-
-        return $result;
     }
 
     public function getFlags(): QueryFlags
@@ -65,10 +21,60 @@ class Query
         return $this->flags;
     }
 
-    private function validateFlags(): void
+    public function getQuestion(): Question
     {
-        if ($this->flags->getOpcode() !== Opcode::STANDARD->value) {
+        return $this->question;
+    }
+
+    private function __construct(private string $txId, private Question $question, private QueryFlags $flags)
+    {
+    }
+
+    public static function fromBuffer(string $buffer): self
+    {
+        $txId = substr($buffer, 0, 2);
+        $flags = QueryFlags::fromBuffer($buffer);
+        if ($flags->getOpcode() !== Opcode::STANDARD) {
             throw new NotImplementedException();
         }
+        $name = DomainName::decode(substr($buffer, self::HEADER_LENGTH));
+        $type = self::parseType(substr($buffer, self::HEADER_LENGTH + $name->getEncodedLength(), 2));
+        $question = new Question($name, $type);
+        return new self($txId, $question, $flags);
+    }
+
+    public static function for(Question $question): self
+    {
+        $flags = new QueryFlags(recursionDesired:  true);
+
+        return new self(random_bytes(2), $question, $flags);
+    }
+
+    private static function parseType(string $buffer): RecordType
+    {
+        $type = unpack('n', $buffer);
+        if (!$type || !isset($type[1])) {
+            throw new MalformedQueryException();
+        }
+        $type = RecordType::fromInt($type[1]);
+        if ($type === null) {
+            throw new NotImplementedException();
+        }
+
+        return $type;
+    }
+
+    public function encode(): string
+    {
+        $questionCount = 1;
+        return implode('', [
+            $this->txId,
+            $this->flags->encode(),
+            pack('n', $questionCount),
+            pack('n', 0),
+            pack('n', 0),
+            pack('n', 0),
+            $this->question->encode()
+        ]);
     }
 }

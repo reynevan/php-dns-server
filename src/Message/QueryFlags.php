@@ -4,30 +4,46 @@ namespace Reynevan\PhpDnsServer\Message;
 
 class QueryFlags
 {
-    private int $flags;
 
-    public function __construct(string $buffer)
+    public function __construct(
+        private bool $isTruncated = false,
+        private bool $recursionDesired = false,
+        private ?Opcode $opcode = Opcode::STANDARD
+    )
     {
-        $this->flags = unpack('n', substr($buffer, 2, 2))[1] >> 4;
     }
 
-    public function getOpcode(): int
+    public static function fromBuffer(string $buffer): self
     {
-        return ($this->flags >> 7) & 0xF;
+        $buffer = unpack('n', substr($buffer, 2, 2))[1] >> 4;
+        $opcode = ($buffer >> 7) & 0xF;
+        $isTruncated = (($buffer >> 5) & 0x1) === 1;
+        $recursionDesired = (($buffer >> 4) & 0x1) === 1;
+        return new self($isTruncated, $recursionDesired, Opcode::tryFrom($opcode));
     }
 
-    public function getResponse(): int
+    public function encode(): string
     {
-        return ($this->flags >> 11) & 0x1;
+        $flags =
+            ($this->opcode->value << 11)
+            | (($this->isTruncated ? 1 : 0) << 9)
+            | (($this->recursionDesired ? 1 : 0) << 8);
+
+        return pack('n', $flags);
     }
 
-    public function getTruncated(): int
+    public function getOpcode(): ?Opcode
     {
-        return ($this->flags >> 5) & 0x1;
+        return $this->opcode;
     }
 
-    public function getRecursion(): int
+    public function isTruncated(): bool
     {
-        return ($this->flags >> 4) & 0x1;
+        return $this->isTruncated;
+    }
+
+    public function isRecursionDesired(): bool
+    {
+        return $this->recursionDesired;
     }
 }

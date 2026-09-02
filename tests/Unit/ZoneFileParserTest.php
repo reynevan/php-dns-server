@@ -1,6 +1,6 @@
 <?php
 
-namespace Unit;
+namespace Reynevan\PhpDnsServer\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;

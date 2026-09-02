@@ -29,7 +29,8 @@ class Zone
 
     public function lookup(Query $query): LookupResult
     {
-        $queriedName = DomainName::fromString($query->getName());
+        $question = $query->getQuestion();
+        $queriedName = $question->getName();
         $byName = array_filter(
             $this->records,
             fn($r) => DomainName::fromString($r->getName())->equals($queriedName)
@@ -41,7 +42,7 @@ class Zone
 
         $byType = array_values(array_filter(
             $byName,
-            fn($r) => $r->getType() === $query->getType()
+            fn($r) => $r->getType() === $question->getType()
         ));
 
         return new LookupResult($byType, ResponseCode::NOERROR);

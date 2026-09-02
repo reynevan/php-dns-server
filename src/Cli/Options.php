@@ -31,7 +31,7 @@ readonly class Options
             }
         }
 
-        $args = self::normalizeArgs($argv);
+        $args = self::normalizeArgs($argv, $shortMap);
         $count = count($args);
 
         for ($i = 1; $i < $count; $i++) {
@@ -89,9 +89,10 @@ readonly class Options
 
     /**
      * @param string[] $argv
+     * @param string[] $shortMap
      * @return string[]
      */
-    private static function normalizeArgs(array $argv): array
+    private static function normalizeArgs(array $argv, array $shortMap): array
     {
         $args = [];
 
@@ -107,9 +108,14 @@ readonly class Options
                 continue;
             }
 
-            if (preg_match('/^-[a-zA-Z]{2,}$/', $arg)) {
-                foreach (str_split(substr($arg, 1)) as $shortArg) {
-                    $args[] = '-' . $shortArg;
+            if (preg_match('/^-[a-zA-Z0-9]{2,}$/', $arg)) {
+                foreach (str_split(substr($arg, 1)) as $i => $shortArg) {
+                    if (isset($shortMap[$shortArg])) {
+                        $args[] = '-' . $shortArg;
+                    } else {
+                        $args[] = substr($arg, $i + 1);
+                        break;
+                    }
                 }
                 continue;
             }

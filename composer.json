@@ -8,6 +8,11 @@
             "Reynevan\\PhpDnsServer\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Reynevan\\PhpDnsServer\\Tests\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "Paweł Sumiński",

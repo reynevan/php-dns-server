@@ -49,7 +49,7 @@ readonly class Response
             pack('n', count($this->records)),
             pack('n', 0),
             pack('n', 0),
-            $hasQuery ? $this->query : '',
+            $hasQuery ? $this->query->getQuestion()?->encode() : '',
             $this->formatAnswers()
         ]);
     }
@@ -60,11 +60,10 @@ readonly class Response
             || $this->rCode === ResponseCode::NXDOMAIN;
 
         $qr = 1;
-        $opcode = $this->query?->getFlags()->getOpcode() ?? 0;
-        ;
+        $opcode = $this->query?->getFlags()->getOpcode()?->value ?? 0;
         $aa = $authoritative ? 1 : 0;
         $tc = 0;
-        $rd = $this->query?->getFlags()->getRecursion() ?? 0;
+        $rd = $this->query?->getFlags()->isRecursionDesired() ?? 0;
         $ra = 0;
         $z = 0;
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Unit;
+namespace Reynevan\PhpDnsServer\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Reynevan\PhpDnsServer\Cli\InvalidOptionException;
@@ -22,6 +22,14 @@ class OptionsTest extends TestCase
         $this->assertSame($options->get('port'), 53);
         $this->assertSame($options->get('address'), '127.0.0.1');
         $this->assertSame($options->get('verbose'), true);
+    }
+    public function testParseShouldParseShortOptionWithValue(): void
+    {
+        $options = Options::parse([
+            'index.php',
+            '-p53',
+        ], $this->getOptionsDefinition());
+        $this->assertSame($options->get('port'), 53);
     }
 
     public function testParseShouldParseLongSyntaxWithEqualSign(): void
