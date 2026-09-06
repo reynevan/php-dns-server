@@ -10,6 +10,12 @@ class NsRecord extends Record
 
     protected function encodeRdata(): string
     {
-        return DomainName::fromString($this->rdata)->encode();
+        return DomainName::fromString($this->rData)->encode();
+    }
+
+    public function setEncodedRdata(string $buffer, int $offset): static
+    {
+        $this->rData = (string) DomainName::decode($buffer, $offset);
+        return $this;
     }
 }

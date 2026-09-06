@@ -10,6 +10,6 @@ class PtrRecord extends Record
 
     protected function encodeRdata(): string
     {
-        return DomainName::fromString($this->rdata)->encode();
+        return DomainName::fromString($this->rData)->encode();
     }
 }

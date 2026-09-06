@@ -9,6 +9,23 @@ use Reynevan\PhpDnsServer\Message\Exception\MalformedQueryException;
 
 class DomainNameTest extends TestCase
 {
+    /**
+     * A response-shaped packet: a twelve-byte header, one uncompressed name and three
+     * compressed ones, laid out the way a real answer section reuses earlier names.
+     *
+     *   12  \x03www\x07example\x03com\x00   www.example.com.   (17 bytes, ends at 28)
+     *   29  \xc0\x0c                        -> 12              www.example.com.
+     *   31  \x04mail\xc0\x10                mail + -> 16       mail.example.com.
+     *   38  \xc0\x1d                        -> 29, a pointer   www.example.com.
+     *   40  \xc0\x1c                        -> 28, the root    .
+     */
+    private const string PACKET = "\x2a\x2a\x81\x80\x00\x01\x00\x03\x00\x00\x00\x00"
+        . "\x03www\x07example\x03com\x00"
+        . "\xc0\x0c"
+        . "\x04mail\xc0\x10"
+        . "\xc0\x1d"
+        . "\xc0\x1c";
+
     #[DataProvider('canonicalizationProvider')]
     public function testCanonicalizesToAnAbsoluteName(string $input, string $expected): void
     {
@@ -99,7 +116,13 @@ class DomainNameTest extends TestCase
         $this->assertSame('.', (string) DomainName::decode("\x00"));
     }
 
-    public function testDecodeIgnoresTrailingBytesButReportsTheirOffset(): void
+    public function testDecodesANameStartingAtAnOffset(): void
+    {
+        $offset = 12;
+        $this->assertSame('www.example.com.', (string) DomainName::decode(self::PACKET, $offset));
+    }
+
+    public function testDecodeStopsAtTheRootLabelAndIgnoresTrailingBytes(): void
     {
         $name = DomainName::decode("\x03www\x07example\x03com\x00\x00\x01\x00\x01");
 
@@ -107,18 +130,58 @@ class DomainNameTest extends TestCase
         $this->assertSame(17, $name->getEncodedLength());
     }
 
-    public function testDecodeRejectsATruncatedName(): void
+    #[DataProvider('compressedNameProvider')]
+    public function testFollowsCompressionPointers(int $offset, string $expected): void
     {
-        $this->expectException(MalformedQueryException::class);
-
-        DomainName::decode("\x03ww");
+        $this->assertSame($expected, (string) DomainName::decode(self::PACKET, $offset));
     }
 
-    public function testDecodeRejectsANameWithoutARootLabel(): void
+    /**
+     * @return iterable<string, array{int, string}>
+     */
+    public static function compressedNameProvider(): iterable
+    {
+        yield 'pointer replacing a whole name' => [29, 'www.example.com.'];
+        yield 'label followed by a pointer to a suffix' => [31, 'mail.example.com.'];
+        yield 'pointer to another pointer' => [38, 'www.example.com.'];
+        yield 'pointer to the root label' => [40, '.'];
+    }
+
+    /**
+     * A compressed name occupies fewer bytes on the wire than the name it expands to, so
+     * getEncodedLength() — derived from the labels — is not the number of bytes read and
+     * cannot be used to walk to the next field. The two bytes at offset 29 expand to the
+     * seventeen-byte name at offset 12.
+     */
+    public function testEncodedLengthIsTheExpandedLengthNotTheBytesRead(): void
+    {
+        $offset = 29;
+        $this->assertSame(17, DomainName::decode(self::PACKET, $offset)->getEncodedLength());
+    }
+
+    #[DataProvider('malformedNameProvider')]
+    public function testDecodeRejectsMalformedNames(string $buffer, int $offset = 0): void
     {
         $this->expectException(MalformedQueryException::class);
 
-        DomainName::decode("\x03www");
+        DomainName::decode($buffer, $offset);
+    }
+
+    /**
+     * @return iterable<string, array{string}|array{string, int}>
+     */
+    public static function malformedNameProvider(): iterable
+    {
+        yield 'truncated label' => ["\x03ww"];
+        yield 'name without a root label' => ["\x03www"];
+        yield 'length byte using reserved type 01' => ["\x40" . str_repeat('a', 64) . "\x00"];
+        yield 'length byte using reserved type 10' => ["\x80\x00"];
+        yield 'pointer missing its second byte' => ["\xc0"];
+        yield 'pointer past the end of the buffer' => ["\xc0\x63"];
+        yield 'pointer to itself' => ["\xc0\x00"];
+        yield 'two pointers pointing at each other' => ["\xc0\x02\xc0\x00"];
+        yield 'pointer to a later offset' => ["\xc0\x02\x03www\x00"];
+        yield 'offset past the end of the buffer' => ["\x03www\x00", 99];
     }
 
     public function testEqualsIgnoresTheTrailingDotAndCase(): void

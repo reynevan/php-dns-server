@@ -3,16 +3,17 @@
 namespace Reynevan\PhpDnsServer\Record;
 
 use Reynevan\PhpDnsServer\Message\DomainName;
+use Reynevan\PhpDnsServer\Message\Exception\MalformedQueryException;
 
 class Record
 {
-    protected string $name;
-    protected string $rdata;
+    protected DomainName $name;
+    protected string $rData;
     protected int $ttl;
     protected RecordClass $class;
     protected RecordType $type;
 
-    public function __construct(?RecordType $type = null, ?RecordClass $class = null)
+    private function __construct(?RecordType $type = null, ?RecordClass $class = null)
     {
         if ($type !== null) {
             $this->type = $type;
@@ -22,7 +23,7 @@ class Record
         }
     }
 
-    public static function create(RecordType $type, RecordClass $class): ?Record
+    public static function create(?RecordType $type, ?RecordClass $class = RecordClass::IN): Record
     {
         $record = match ($type) {
             RecordType::A => new ARecord(),
@@ -33,6 +34,7 @@ class Record
             RecordType::CAA => new CaaRecord(),
             RecordType::NS => new NsRecord(),
             RecordType::PTR => new PtrRecord(),
+            RecordType::TXT => new TxtRecord(),
             default => null
         };
         if ($record) {
@@ -41,27 +43,55 @@ class Record
         return new self($type, $class);
     }
 
-    public function getName(): string
+    /**
+     * @throws MalformedQueryException
+     */
+    public static function fromBuffer(string $buffer, int &$offset): self
+    {
+        return self::fromPreamble(RecordPreamble::decode($buffer, $offset), $buffer, $offset);
+    }
+
+
+    public static function fromPreamble(RecordPreamble $preamble, string $buffer, int &$offset): self
+    {
+        $record = self::create($preamble->getRecordType(), $preamble->getRecordClass());
+        $buffer = substr($buffer, 0, $offset + $preamble->getRdLength());
+        $record->setName($preamble->getName())
+            ->setTtl($preamble->getTtl())
+            ->setEncodedRdata($buffer, $offset);
+
+        $offset += $preamble->getRdLength();
+
+        return $record;
+    }
+
+    public function getName(): DomainName
     {
         return $this->name;
     }
 
-    public function setName(string $name): static
+    public function setName(DomainName $name): static
     {
         $this->name = $name;
 
         return $this;
     }
 
-    public function getRdata(): string
+    public function getRData(): string
     {
-        return $this->rdata;
+        return $this->rData;
     }
 
-    public function setRdata(string $rdata): static
+    public function setRData(string $rData): static
     {
-        $this->rdata = $rdata;
+        $this->rData = $rData;
 
+        return $this;
+    }
+
+    public function setEncodedRdata(string $buffer, int $offset): static
+    {
+        $this->rData = substr($buffer, $offset);
         return $this;
     }
 
@@ -80,6 +110,14 @@ class Record
     public function getType(): RecordType
     {
         return $this->type;
+    }
+
+    public function withTtl(int $ttl): static
+    {
+        $clone = clone $this;
+        $clone->ttl = $ttl;
+
+        return $clone;
     }
 
     protected function encodeName(): string
@@ -114,7 +152,7 @@ class Record
 
     protected function encodeRdata(): string
     {
-        return pack('C', strlen($this->rdata)) . $this->rdata;
+        return pack('C', strlen($this->rData)) . $this->rData;
     }
 
     final public function __toString(): string

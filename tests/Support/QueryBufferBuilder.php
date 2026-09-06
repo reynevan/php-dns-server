@@ -4,20 +4,19 @@ namespace Reynevan\PhpDnsServer\Tests\Support;
 
 use Reynevan\PhpDnsServer\Message\DomainName;
 
-class BufferBuilder
+class QueryBufferBuilder
 {
     public static function build(
-        string      $txId,
-        string      $flags,
-        string      $domain = 'example.com.',
-        int         $qdCount = 1,
-        int         $anCount = 0,
-        int         $nsCount = 0,
-        int         $arCount = 0,
-        int         $type = 1,
-        int         $rClass = 1
-    ): string
-    {
+        string $txId,
+        string $flags,
+        string $domain = 'example.com.',
+        int $qdCount = 1,
+        int $anCount = 0,
+        int $nsCount = 0,
+        int $arCount = 0,
+        int $type = 1,
+        int $rClass = 1
+    ): string {
         return implode('', [
             $txId,
             pack('n', $flags),

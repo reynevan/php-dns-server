@@ -5,11 +5,13 @@ namespace Reynevan\PhpDnsServer\Message;
 use Reynevan\PhpDnsServer\Record\RecordClass;
 use Reynevan\PhpDnsServer\Record\RecordType;
 
-class Question
+readonly class Question
 {
-    public function __construct(private DomainName $name, private RecordType $type, private RecordClass $class = RecordClass::IN)
-    {
-
+    public function __construct(
+        private DomainName $name,
+        private RecordType $type,
+        private RecordClass $class = RecordClass::IN
+    ) {
     }
 
     public function getType(): RecordType
@@ -27,10 +29,12 @@ class Question
         return $this->class;
     }
 
-    public static function decode(string $buffer): self
+    public static function fromBuffer(string $buffer): self
     {
-
-        return new self();
+        $name = DomainName::decode($buffer);
+        $type = RecordType::fromInt(unpack('n', substr($buffer, strlen($name) + 1, 2))[1]);
+        $class = RecordClass::fromInt(unpack('n', substr($buffer, strlen($name) + 3, 2))[1]);
+        return new self($name, $type, $class);
     }
 
     public function encode(): string

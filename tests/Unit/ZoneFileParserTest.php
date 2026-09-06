@@ -314,6 +314,13 @@ class ZoneFileParserTest extends TestCase
         $this->assertSame($expected, self::toArray((new ZoneFileParser())->parse($zone)));
     }
 
+    public function testParsesLineWithTabs(): void
+    {
+        $expected = [['www.example.com.', 'A', 3600, '192.0.2.10']];
+        $zone = self::zone("www\tIN\tA\t192.0.2.10");
+        $this->assertSame($expected, self::toArray((new ZoneFileParser())->parse($zone)));
+    }
+
     /**
      * @return iterable<string, array{string, list<array{string, string, int, string}>}>
      */
@@ -439,12 +446,12 @@ class ZoneFileParserTest extends TestCase
     {
         return array_map(
             fn(Record $record) => [
-                $record->getName(),
+                (string) $record->getName(),
                 $record->getType()->value,
                 $record->getTtl(),
-                $record->getRdata(),
+                $record->getRData(),
             ],
-            $zone->getRecords()
+            $zone->getRecords()->toArray()
         );
     }
 }

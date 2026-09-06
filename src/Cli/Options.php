@@ -89,7 +89,7 @@ readonly class Options
 
     /**
      * @param string[] $argv
-     * @param string[] $shortMap
+     * @param array<string, Option> $shortMap
      * @return string[]
      */
     private static function normalizeArgs(array $argv, array $shortMap): array

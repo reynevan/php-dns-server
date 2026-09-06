@@ -6,16 +6,15 @@ use PHPUnit\Framework\TestCase;
 use Reynevan\PhpDnsServer\Message\Exception\NotImplementedException;
 use Reynevan\PhpDnsServer\Message\Query;
 use Reynevan\PhpDnsServer\Record\RecordType;
-use Reynevan\PhpDnsServer\Tests\Support\BufferBuilder;
+use Reynevan\PhpDnsServer\Tests\Support\QueryBufferBuilder;
 
 class QueryTest extends TestCase
 {
-
     public function testQueryFromValidBuffer()
     {
         $txId = random_bytes(2);
         $name = 'example.com.';
-        $buffer = BufferBuilder::build($txId, 0x0100, $name, type: RecordType::A->toInt());
+        $buffer = QueryBufferBuilder::build($txId, 0x0100, $name, type: RecordType::A->toInt());
 
         $query = Query::fromBuffer($buffer);
 
@@ -26,7 +25,7 @@ class QueryTest extends TestCase
 
     public function testQueryFromBufferWithInvalidOpcode()
     {
-        $buffer = BufferBuilder::build(random_bytes(2), 0x1100);
+        $buffer = QueryBufferBuilder::build(random_bytes(2), 0x1100);
 
         $this->expectException(NotImplementedException::class);
         Query::fromBuffer($buffer);
@@ -34,7 +33,7 @@ class QueryTest extends TestCase
 
     public function testQueryFromBufferWithInvalidRecordType()
     {
-        $buffer = BufferBuilder::build(random_bytes(2), 0x0100, type: 18);
+        $buffer = QueryBufferBuilder::build(random_bytes(2), 0x0100, type: 18);
 
         $this->expectException(NotImplementedException::class);
         Query::fromBuffer($buffer);

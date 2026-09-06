@@ -1,6 +1,7 @@
 /vendor/
 /.idea/
 /.phpunit.result.cache
+/tests/report
 
 # local overrides of the committed configs
 /phpcs.xml

@@ -3,48 +3,42 @@
 namespace Reynevan\PhpDnsServer\Zone;
 
 use Reynevan\PhpDnsServer\Message\DomainName;
-use Reynevan\PhpDnsServer\Message\Query;
-use Reynevan\PhpDnsServer\Message\ResponseCode;
-use Reynevan\PhpDnsServer\Record\Record;
+use Reynevan\PhpDnsServer\Record\RecordSet;
+use Reynevan\PhpDnsServer\Record\RecordType;
 
 class Zone
 {
-    /**
-     * @var Record[]
-     */
-    private array $records = [];
-
-    public function addRecord(Record $record): void
+    public function __construct(private readonly DomainName $origin, private RecordSet $records)
     {
-        $this->records[] = $record;
     }
 
-    /**
-     * @return Record[]
-     */
-    public function getRecords(): array
+    public function getOrigin(): DomainName
+    {
+        return $this->origin;
+    }
+
+    public function getRecords(): RecordSet
     {
         return $this->records;
     }
 
-    public function lookup(Query $query): LookupResult
+    public function findByName(DomainName $name): RecordSet
     {
-        $question = $query->getQuestion();
-        $queriedName = $question->getName();
-        $byName = array_filter(
-            $this->records,
-            fn($r) => DomainName::fromString($r->getName())->equals($queriedName)
-        );
+        return $this->records->ofName($name);
+    }
 
-        if (!count($byName)) {
-            return new LookupResult([], ResponseCode::NXDOMAIN);
-        }
+    public function findByNameAndType(DomainName $name, RecordType $type): RecordSet
+    {
+        return $this->records->ofName($name)->ofType($type);
+    }
 
-        $byType = array_values(array_filter(
-            $byName,
-            fn($r) => $r->getType() === $question->getType()
-        ));
+    public function hasName(DomainName $name): bool
+    {
+        return !$this->findByName($name)->isEmpty();
+    }
 
-        return new LookupResult($byType, ResponseCode::NOERROR);
+    public function isAuthoritativeFor(DomainName $name): bool
+    {
+        return $name->isWithin($this->origin);
     }
 }

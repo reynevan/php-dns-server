@@ -1,13 +1,14 @@
 # php-dns-server
 
-A minimal authoritative DNS server written in plain PHP 8.4 — no framework, no
-runtime dependencies beyond three PHP extensions. It loads a BIND-style zone
-file, listens on UDP and answers queries for the names it holds.
+A small DNS server written in plain PHP 8.4 - no framework, no runtime
+dependencies beyond three PHP extensions. It serves a BIND-style zone file over
+UDP and, for names outside that zone, resolves them recursively from the root
+servers, caching the results in memory.
 
-This is a learning/hobby project. It implements enough of RFC 1035 to answer
-real `dig` queries, but it is **not** production software: no TCP fallback, no
-EDNS(0), no zone transfers, no recursion, no caching, and no protection against
-amplification abuse. Don't expose it to the public internet.
+This is a learning/hobby project. It implements enough of RFC 1035 and RFC 6891
+to answer real `dig` queries, but it is **not** production software: no TCP
+listener, no zone transfers, no DNSSEC, and no protection against amplification
+abuse. Don't expose it to the public internet.
 
 ## Requirements
 
@@ -18,7 +19,7 @@ amplification abuse. Don't expose it to the public internet.
 ## Installation
 
 ```bash
-git git@github.com:reynevan/php-dns-server.git
+git clone git@github.com:reynevan/php-dns-server.git
 cd php-dns-server
 composer install
 ```
@@ -38,8 +39,8 @@ Then query it with `dig`:
 ```console
 $ dig @127.0.0.1 -p 5353 www.example.com A
 
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 48395
-;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 20536
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; QUESTION SECTION:
 ;www.example.com.               IN      A
@@ -55,29 +56,36 @@ $ dig @127.0.0.1 -p 5353 example.com MX +short
 
 $ dig @127.0.0.1 -p 5353 example.com SOA +short
 ns1.example.com. admin.example.com. 2020080302 7200 3600 1209600 3600
+```
 
-$ dig @127.0.0.1 -p 5353 nope.example.com A +short ; echo "status: NXDOMAIN"
-status: NXDOMAIN
+Names the zone does not cover are resolved recursively:
+
+```console
+$ dig @127.0.0.1 -p 5353 iana.org A +short
+192.0.43.8
 ```
 
 The server runs in the foreground; stop it with `Ctrl+C`.
 
 ### Options
 
-| Short | Long        | Default        | Description                          |
-|-------|-------------|----------------|--------------------------------------|
-| `-p`  | `--port`    | `5353`         | UDP port to listen on                |
-| `-a`  | `--address` | `0.0.0.0`      | Bind address                         |
-| `-z`  | `--zone`    | `example.zone` | Zone file, relative to the repo root |
-| `-h`  | `--help`    | —              | Print usage and exit                 |
+| Short | Long                 | Default        | Description                          |
+|-------|----------------------|----------------|--------------------------------------|
+| `-p`  | `--port`             | `5353`         | UDP port to listen on                |
+| `-a`  | `--address`          | `0.0.0.0`      | Bind address                         |
+| `-z`  | `--zone`             | `example.zone` | Zone file, relative to the repo root |
+| `-i`  | `--identity-address` | `127.0.0.1`    | Address the server answers PTR for   |
+| `-n`  | `--identity-name`    | `dns.rnvn`     | Name returned for that PTR           |
+| `-r`  | `--recursive`        | off            | Advertise recursion availability     |
+| `-h`  | `--help`             | -              | Print usage and exit                 |
 
 Notes:
 
 - **Ports below 1024 need privileges.** To serve on the standard port 53, run
   with `sudo`, or grant the binary the capability once:
   `sudo setcap cap_net_bind_service=+ep $(which php)`.
-- **Port 5353 is mDNS.** On a machine running Avahi or Bonjour the default port
-  may already be taken — pick another one with `-p`.
+- `-z` takes an absolute path as-is; anything else is resolved against the
+  repository root.
 
 ## Zone file format
 
@@ -110,6 +118,7 @@ Supported:
 - `@` for the zone apex, relative names expanded with `$ORIGIN`, trailing-dot
   absolute names
 - A blank leading field inherits the name from the previous record
+- Fields separated by spaces or tabs
 - TTL and class each optional, in either order
 - `;` comments, including trailing ones, with `;` inside quotes left alone
 - Multi-line records wrapped in parentheses
@@ -124,7 +133,6 @@ Supported:
 - PTR
 - SOA
 - TXT
-
 
 ## Development
 

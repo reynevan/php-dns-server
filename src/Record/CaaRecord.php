@@ -8,9 +8,9 @@ class CaaRecord extends Record
 
     protected function encodeRdata(): string
     {
-        $parts = explode(' ', $this->rdata, 3);
+        $parts = explode(' ', $this->rData, 3);
         $flag = array_shift($parts);
         $tag = array_shift($parts);
-        return pack('c', $flag) . pack('c', strlen($tag)) . $tag . str_replace('"', '', implode(' ', $parts));
+        return pack('C', $flag) . pack('c', strlen($tag)) . $tag . str_replace('"', '', implode(' ', $parts));
     }
 }

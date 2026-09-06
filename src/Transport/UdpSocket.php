@@ -6,6 +6,8 @@ use Socket;
 
 readonly class UdpSocket
 {
+    private const int RECEIVE_BUFFER_SIZE = 4096;
+
     private Socket $socket;
 
 
@@ -38,7 +40,7 @@ readonly class UdpSocket
         $clientIp = '';
         $clientPort = 0;
 
-        $length = socket_recvfrom($this->socket, $buffer, 512, 0, $clientIp, $clientPort);
+        $length = socket_recvfrom($this->socket, $buffer, self::RECEIVE_BUFFER_SIZE, 0, $clientIp, $clientPort);
 
         if ($length === false || strlen($buffer) < 2) {
             return null;
@@ -49,7 +51,6 @@ readonly class UdpSocket
 
     public function send(string $data, SocketAddress $peer): void
     {
-        // TODO check result
         socket_sendto($this->socket, $data, strlen($data), 0, $peer->getAddress(), $peer->getPort());
     }
 }

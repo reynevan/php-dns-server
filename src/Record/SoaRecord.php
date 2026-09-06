@@ -10,25 +10,39 @@ class SoaRecord extends Record
 
     protected function encodeRdata(): string
     {
-        $data = str_replace(['(', ')'], '', $this->rdata);
+        $data = str_replace(['(', ')'], '', $this->rData);
         $data = preg_replace('/\s+/', ' ', $data);
         $data = trim($data);
         $parts = explode(' ', $data);
-        $min = array_pop($parts);
-        $expire = array_pop($parts);
-        $retry = array_pop($parts);
-        $refresh = array_pop($parts);
-        $serial = array_pop($parts);
-        $rName = array_pop($parts);
-        $mName = array_pop($parts);
+        $mName = array_shift($parts);
+        $rName = array_shift($parts);
         return implode('', [
             (DomainName::fromString($mName))->encode(),
             (DomainName::fromString($rName))->encode(),
-            pack('N', (int)$serial),
-            pack('N', (int)$refresh),
-            pack('N', (int)$retry),
-            pack('N', (int)$expire),
-            pack('N', (int)$min)
+            pack('NNNNN', ...$parts),
         ]);
+    }
+
+    public function setEncodedRdata(string $buffer, int $offset): static
+    {
+        $mName = DomainName::decode($buffer, $offset);
+        $rName = DomainName::decode($buffer, $offset);
+        $fields = unpack('Nserial/Nrefresh/Nretry/Nexpire/Nttl', substr($buffer, $offset, 20));
+
+        $this->rData = implode(' ', [
+            $mName,
+            $rName,
+            $fields['serial'],
+            $fields['refresh'],
+            $fields['retry'],
+            $fields['expire'],
+            $fields['ttl']
+        ]);
+        return $this;
+    }
+
+    public function getMinimum(): int
+    {
+        return (int) explode(' ', $this->rData)[6];
     }
 }

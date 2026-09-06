@@ -5,6 +5,7 @@ namespace Reynevan\PhpDnsServer\Zone;
 use Reynevan\PhpDnsServer\Message\DomainName;
 use Reynevan\PhpDnsServer\Record\Record;
 use Reynevan\PhpDnsServer\Record\RecordClass;
+use Reynevan\PhpDnsServer\Record\RecordSet;
 use Reynevan\PhpDnsServer\Record\RecordType;
 use Throwable;
 
@@ -14,11 +15,16 @@ class ZoneFileParser
 
     private DomainName $origin;
     private int $ttl = self::DEFAULT_TTL;
-    private Zone $zone;
+
+    /**
+     * @var Record[]
+     */
+    private array $records = [];
+
+    private ?DomainName $firstOrigin = null;
 
     public function __construct()
     {
-        $this->zone = new Zone();
         $this->origin = new DomainName(DomainName::ROOT);
     }
 
@@ -31,7 +37,6 @@ class ZoneFileParser
             try {
                 $name = $this->parseLine($line, $previousName);
             } catch (Throwable $e) {
-                echo $e->getMessage();
                 continue;
             }
             if ($name) {
@@ -39,7 +44,22 @@ class ZoneFileParser
             }
         }
 
-        return $this->zone;
+        return new Zone($this->resolveApex(), new RecordSet($this->records));
+    }
+
+    /**
+     * The zone apex is the owner name of the SOA record; a hints-style file without one
+     * falls back to the first $ORIGIN, then to the root.
+     */
+    private function resolveApex(): DomainName
+    {
+        foreach ($this->records as $record) {
+            if ($record->getType() === RecordType::SOA) {
+                return $record->getName();
+            }
+        }
+
+        return $this->firstOrigin ?? new DomainName(DomainName::ROOT);
     }
 
     protected function parseLine(string $line, string $previousName): ?string
@@ -52,6 +72,7 @@ class ZoneFileParser
                 $this->getDirectiveValue('$ORIGIN', $line),
                 $this->origin
             );
+            $this->firstOrigin ??= $this->origin;
             return null;
         }
         if (str_starts_with($line, '$TTL')) {
@@ -62,12 +83,13 @@ class ZoneFileParser
         if (!$record) {
             return null;
         }
-        $this->zone->addRecord($record);
-        return $record->getName();
+        $this->records[] = $record;
+        return (string) $record->getName();
     }
 
     private function parseRecord(string $line, string $previousName): ?Record
     {
+        $line = preg_replace('/\t/', ' ', $line);
         $parts = explode(' ', $line);
         if (preg_match('/^\s.+/', $line)) {
             $name = $previousName;
@@ -102,10 +124,7 @@ class ZoneFileParser
         }
         $rdata = $this->qualifyRdata($type, implode(' ', array_slice($parts, $dataFound)));
         $record = Record::create($type, $class);
-        if (!$record) {
-            return null;
-        }
-        $record->setTtl($ttl)->setName($name)->setRdata($rdata);
+        $record->setTtl($ttl)->setName(DomainName::fromString($name))->setRData($rdata);
         return $record;
     }
 
