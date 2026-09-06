@@ -21,7 +21,11 @@ readonly class RequestHandler
         $query = null;
         try {
             $query = Query::fromBuffer($buffer);
-            $response = self::badVersion($query) ?? Response::answer($query, $this->resolver->resolve($query), $this->options->get('recursive'));
+            $badVersionResponse = self::badVersion($query);
+            if ($badVersionResponse) {
+                return $badVersionResponse;
+            }
+            return Response::answer($query, $this->resolver->resolve($query), $this->options->get('recursive'));
         } catch (DnsException $e) {
             $response = Response::error($buffer, $e->getResponseCode(), $query);
         } catch (Throwable) {
